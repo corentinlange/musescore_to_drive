@@ -1,0 +1,7 @@
+__pycache__
+.mscbackup
+*.autosave
+
+output
+.env
+service_account.json

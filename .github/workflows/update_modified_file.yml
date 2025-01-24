@@ -1,0 +1,99 @@
+name: Update modified musescore on drive
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "*.mscz"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y wget libjack-jackd2-0 libopengl0 libgl1-mesa-glx libegl1-mesa libwayland-client0 libxcb-xinerama0 libxcb-icccm4 libxcb-image0
+          pip install -r scripts/requirements.txt
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            *.mscz
+
+      - name: List all changed files
+        env:
+          ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+        run: |
+          for file in ${ALL_CHANGED_FILES}; do
+            echo "$file was changed"
+          done
+
+      - name: Download latest MuseScore AppImage
+        run: |
+          wget https://cdn.jsdelivr.net/musescore/v4.4.2/MuseScore-Studio-4.4.2.242570931-x86_64.AppImage
+          chmod +x MuseScore-Studio-4.4.2.242570931-x86_64.AppImage
+          ./MuseScore-Studio-4.4.2.242570931-x86_64.AppImage --appimage-extract
+
+      - name: Convert MSCZ to PDF
+        env:
+          ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+        run: |      
+          export QT_QPA_PLATFORM=offscreen
+          
+          mkdir -p output
+          # Loop over modified files and process only *.mscz files
+          for file in ${ALL_CHANGED_FILES}; do
+            if [[ $file == *.mscz ]]; then
+              base_name=$(basename "$file" .mscz)
+              output_dir="output/${base_name}"
+              mkdir -p "$output_dir"
+
+              # Generate MP3 
+              ./squashfs-root/AppRun -o "$output_dir/${base_name}.mp3" "$file"
+              
+              # Generate parts as a json
+              ./squashfs-root/AppRun "$file" --score-parts > "${base_name}-parts.json"
+            
+              # Generate mscz from json parts
+              python scripts/decode_json_parts.py "${base_name}-parts.json" "$output_dir"
+              cp "$file" "$output_dir"
+              
+              # Convert all mscz to pdf in output_dir
+              for mscz_file in "$output_dir"/*.mscz; do
+                mscz_file_name=$(basename "$mscz_file" .mscz)
+                ./squashfs-root/AppRun -o "$output_dir/${mscz_file_name}.pdf" "$mscz_file"
+                rm "$mscz_file"
+              done
+            fi    
+            echo "Processed $file, output in $output_dir -> $(ls -l "$output_dir")"
+          done
+          
+
+          
+      - name: Upload to drive
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.SERVICE_ACCOUNT }}
+        run: |          
+          for mscz_file in *.mscz; do
+            base_name=$(basename "$mscz_file" .mscz)
+            output_dir="output/${base_name}"
+            instrument_dir=""
+            if [ -d "$output_dir" ] && [ "$(ls -A $output_dir)" ]; then
+            python scripts/upload_to_drive.py "$mscz_file" "$base_name"
+            for output_file in "$output_dir"/*; do
+              python scripts/upload_to_drive.py "$output_file" "$base_name"
+            done
+            else
+              echo "No files found in $output_dir"
+              fi
+          done
+
+          
