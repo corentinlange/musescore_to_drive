@@ -1,6 +1,6 @@
 # Musescore to Drive
 
-This repository attemps to make communication between and drive easier
+This repository attemps to make communication between musescore and drive easier
 
 ## Fork the repository
 
