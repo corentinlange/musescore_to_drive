@@ -2,9 +2,6 @@ __pycache__
 .mscbackup
 *.autosave
 
-# Fichiers MuseScore (chaque fork ajoute ses propres fichiers)
-*.mscz
-
 output
 .env
 service_account.json
