@@ -53,11 +53,12 @@ class DriveConnector:
             "name": folder_name,
             "mimeType": "application/vnd.google-apps.folder",
             "parents": [parent_folder_id] if parent_folder_id else [],
+            
         }
 
         created_folder = (
             self.drive_service.files()
-            .create(body=folder_metadata, fields="id")
+            .create(body=folder_metadata, fields="id", supportsAllDrives=True)
             .execute()
         )
 
