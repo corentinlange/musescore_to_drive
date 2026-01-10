@@ -6,7 +6,7 @@ LABEL org.opencontainers.image.description="MuseScore processor with pre-install
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    wget curl jq grep \
+    wget curl jq \
     python3 python3-pip \
     libjack-jackd2-0 libopengl0 libgl1-mesa-glx \
     libegl1-mesa libwayland-client0 \
@@ -21,8 +21,8 @@ RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
 # Download and extract MuseScore (auto-detect latest version)
 RUN echo "Fetching latest MuseScore version..." && \
     LATEST_RELEASE=$(curl -sL -H "User-Agent: Docker-MuseScore-Builder" "https://api.github.com/repos/musescore/MuseScore/releases/latest") && \
-    VERSION=$(echo "$LATEST_RELEASE" | grep -Po '"tag_name": *"\K[^"]*' | sed 's/^v//') && \
-    APPIMAGE_URL=$(echo "$LATEST_RELEASE" | grep -Po '"browser_download_url": *"\K[^"]*' | grep 'x86_64.AppImage$' | head -1) && \
+    VERSION=$(echo "$LATEST_RELEASE" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | sed 's/^v//') && \
+    APPIMAGE_URL=$(echo "$LATEST_RELEASE" | sed -n 's/.*"browser_download_url": *"\([^"]*x86_64\.AppImage\)".*/\1/p' | head -1) && \
     echo "Detected version: v${VERSION}" && \
     echo "URL: ${APPIMAGE_URL}" && \
     if [ -z "$APPIMAGE_URL" ]; then \
