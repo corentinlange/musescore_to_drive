@@ -7,10 +7,14 @@ Usage: python src/drive-api/upload_all.py [output_directory]
 import os
 import sys
 from pathlib import Path
-from dotenv import load_dotenv
 
-# Load .env file
-load_dotenv()
+# Load .env file (optional, for local use)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # dotenv not available in CI, variables passed directly
+    pass
 
 # Add drive-api to path
 sys.path.insert(0, os.path.dirname(__file__))
