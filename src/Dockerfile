@@ -8,6 +8,7 @@ LABEL org.opencontainers.image.description="MuseScore processor with pre-install
 RUN apt-get update && apt-get install -y \
     wget curl jq \
     python3 python3-pip \
+    libfuse2 file \
     libjack-jackd2-0 libopengl0 libgl1-mesa-glx \
     libegl1-mesa libwayland-client0 \
     libxcb-xinerama0 libxcb-icccm4 libxcb-image0 \
