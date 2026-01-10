@@ -19,21 +19,35 @@ RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
     rm /tmp/requirements.txt
 
 # Download and extract MuseScore (auto-detect latest version)
-RUN echo "Fetching latest MuseScore version..." && \
+RUN set -x && \
+    echo "=== Step 1: Fetch GitHub release ===" && \
     LATEST_RELEASE=$(curl -sL -H "User-Agent: Docker-MuseScore-Builder" "https://api.github.com/repos/musescore/MuseScore/releases/latest") && \
-    VERSION=$(echo "$LATEST_RELEASE" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | sed 's/^v//') && \
-    APPIMAGE_URL=$(echo "$LATEST_RELEASE" | sed -n 's/.*"browser_download_url": *"\([^"]*x86_64\.AppImage\)".*/\1/p' | head -1) && \
-    echo "Detected version: v${VERSION}" && \
-    echo "URL: ${APPIMAGE_URL}" && \
+    echo "API response received (${#LATEST_RELEASE} bytes)" && \
+    \
+    echo "=== Step 2: Extract version ===" && \
+    VERSION=$(echo "$LATEST_RELEASE" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | sed 's/^v//' | head -1) && \
+    echo "VERSION=${VERSION}" && \
+    \
+    echo "=== Step 3: Extract AppImage URL ===" && \
+    APPIMAGE_URL=$(echo "$LATEST_RELEASE" | grep "browser_download_url" | grep "x86_64.AppImage" | sed 's/.*: *"\([^"]*\)".*/\1/' | head -1) && \
+    echo "APPIMAGE_URL=${APPIMAGE_URL}" && \
+    \
     if [ -z "$APPIMAGE_URL" ]; then \
-        echo "Error: AppImage not found, using fallback 4.4.4"; \
+        echo "WARNING: AppImage not found in API response, using fallback"; \
         APPIMAGE_URL="https://github.com/musescore/MuseScore/releases/download/v4.4.4/MuseScore-Studio-4.4.4.241220200-x86_64.AppImage"; \
     fi && \
-    wget "$APPIMAGE_URL" -O /tmp/musescore.AppImage && \
+    \
+    echo "=== Step 4: Download AppImage ===" && \
+    wget -q --show-progress "$APPIMAGE_URL" -O /tmp/musescore.AppImage && \
+    ls -lh /tmp/musescore.AppImage && \
+    \
+    echo "=== Step 5: Extract AppImage ===" && \
     chmod +x /tmp/musescore.AppImage && \
     cd /opt && /tmp/musescore.AppImage --appimage-extract && \
     mv squashfs-root musescore && \
     rm /tmp/musescore.AppImage && \
+    \
+    echo "=== Step 6: Verify installation ===" && \
     /opt/musescore/AppRun --version
 
 # Environment variables
