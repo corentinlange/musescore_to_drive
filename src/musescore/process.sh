@@ -2,7 +2,7 @@
 set -e  # Exit on error
 
 # Script de conversion MSCZ → PDF/MP3
-# Usage: ./scripts/process_musescore.sh fichier1.mscz fichier2.mscz ...
+# Usage: ./src/musescore/process.sh fichier1.mscz fichier2.mscz ...
 
 # Configuration
 OUTPUT_DIR="output"
@@ -57,8 +57,21 @@ for file in "$@"; do
         continue
     fi
     
+    # Extraire le nom de base et le chemin relatif
     base_name=$(basename "$file" .mscz)
-    output_dir="$OUTPUT_DIR/${base_name}"
+    
+    # Détecter si le fichier est dans un sous-dossier
+    file_dir=$(dirname "$file")
+    
+    # Si le fichier est dans un sous-dossier, préserver la structure
+    if [[ "$file_dir" != "." ]]; then
+        # Créer la structure output/chemin_relatif/nom_fichier/
+        output_dir="$OUTPUT_DIR/${file_dir}/${base_name}"
+    else
+        # Fichier à la racine : output/nom_fichier/
+        output_dir="$OUTPUT_DIR/${base_name}"
+    fi
+    
     mkdir -p "$output_dir"
     
     echo ""
@@ -76,10 +89,10 @@ for file in "$@"; do
     
     # Générer MSCZ des parties
     echo "🎼 Génération des parties individuelles..."
-    if [ -f "src/tools/decode_json_parts.py" ]; then
-        python3 src/tools/decode_json_parts.py "${base_name}-parts.json" "$output_dir"
+    if [ -f "src/musescore/decode_parts.py" ]; then
+        python3 src/musescore/decode_parts.py "${base_name}-parts.json" "$output_dir"
     else
-        echo "⚠️  decode_json_parts.py non trouvé, parties non générées"
+        echo "⚠️  decode_parts.py non trouvé, parties non générées"
     fi
     
     # Copier le fichier original

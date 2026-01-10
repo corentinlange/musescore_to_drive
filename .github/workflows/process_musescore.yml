@@ -1,10 +1,10 @@
-name: Process MuseScore Files (Reusable)
+name: Process MuseScore File (Reusable)
 
 on:
   workflow_call:
     inputs:
-      files_to_process:
-        description: 'JSON array of files to process'
+      file_to_process:
+        description: 'Single file to process'
         required: true
         type: string
     secrets:
@@ -23,15 +23,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Make scripts executable
-        run: chmod +x src/scripts/*.sh
-
       - name: Convert MSCZ to PDF and MP3
         run: |
-          FILES='${{ inputs.files_to_process }}'
-          ./src/scripts/process_musescore.sh $FILES
+          echo "Processing: ${{ inputs.file_to_process }}"
+          bash ./src/musescore/process.sh "${{ inputs.file_to_process }}"
 
       - name: Upload to Drive
         env:
           GCP_SERVICE_ACCOUNT_KEY_B64: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY_B64 }}
-        run: ./src/scripts/upload_to_drive.sh
+          DRIVE_FOLDER_ID: ${{ vars.DRIVE_FOLDER_ID }}
+        run: |
+          # Decode service account
+          export SERVICE_ACCOUNT=$(echo "$GCP_SERVICE_ACCOUNT_KEY_B64" | base64 -d)
+          
+          # Upload all output files
+          python3 src/drive-api/upload_all.py output

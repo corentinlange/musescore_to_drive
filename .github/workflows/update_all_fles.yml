@@ -7,22 +7,35 @@ jobs:
   get-all-files:
     runs-on: ubuntu-22.04
     outputs:
-      files: ${{ steps.find-files.outputs.files }}
+      matrix: ${{ steps.find-files.outputs.matrix }}
     
     steps:
       - uses: actions/checkout@v4
       
-      - name: Find all MSCZ files
+      - name: Find all MSCZ files recursively
         id: find-files
         run: |
-          FILES=$(ls *.mscz 2>/dev/null || echo "")
-          echo "files=$FILES" >> $GITHUB_OUTPUT
-          echo "Found files: $FILES"
+          # Trouver tous les fichiers .mscz récursivement
+          FILES=$(find . -name "*.mscz" -type f | sed 's|^\./||')
+          
+          # Convertir en JSON array pour la matrix
+          MATRIX=$(echo "$FILES" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          echo "Found files:"
+          echo "$FILES"
 
   process-files:
     needs: get-all-files
+    if: needs.get-all-files.outputs.matrix != '[]'
+    strategy:
+      matrix:
+        file: ${{ fromJson(needs.get-all-files.outputs.matrix) }}
+      fail-fast: false  # Continue même si un fichier échoue
+      max-parallel: 5   # Limite à 5 jobs en parallèle
+    
     uses: ./.github/workflows/process_musescore.yml
     with:
-      files_to_process: ${{ needs.get-all-files.outputs.files }}
+      file_to_process: ${{ matrix.file }}
     secrets:
       GCP_SERVICE_ACCOUNT_KEY_B64: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY_B64 }}

@@ -1,7 +1,9 @@
 import sys
+import os
 
 from config import DRIVE_FOLDER_ID
-from drive_connector import DriveConnector
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'drive-api'))
+from connector import DriveConnector
 
 if __name__ == "__main__":
     drive_connector = DriveConnector()
