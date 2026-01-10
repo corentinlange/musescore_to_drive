@@ -1,6 +1,26 @@
 # 🎼 MuseScore to Drive
 
+> **🎯 Template Repository** : Forkez ce projet pour automatiser la conversion et l'upload de vos partitions MuseScore vers Google Drive !
+
 Workflows GitHub Actions automatisés pour convertir des fichiers MuseScore (`.mscz`) en PDF et MP3, puis les uploader vers Google Drive.
+
+---
+
+## 🚀 Démarrage rapide (pour les forkeurs)
+
+**Nouveau ici ?** Suivez le guide complet : **[📖 SETUP.md](SETUP.md)**
+
+### Setup en 3 étapes (10 minutes, 0 installation locale) :
+
+1. **Forker ce repo**
+2. **Créer un Service Account Google** → [Guide](SETUP.md#2️⃣-créer-un-service-account-google)
+3. **Configurer les secrets GitHub** : `GCP_SERVICE_ACCOUNT_KEY_B64` + `DRIVE_FOLDER_ID`
+
+**C'est tout !** Ajoutez vos fichiers `.mscz` via GitHub (ou git push) et le CI s'occupe du reste.
+
+> 💡 **Pas besoin d'installer Python, MuseScore ou quoi que ce soit en local** - tout se passe dans GitHub Actions !
+
+---
 
 ## ✨ Fonctionnalités
 

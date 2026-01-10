@@ -1,4 +1,4 @@
-FROM debian:slim
+FROM debian:bookworm-slim
 
 # Métadonnées
 LABEL org.opencontainers.image.source=https://github.com/corentinlange/musescore_to_drive
