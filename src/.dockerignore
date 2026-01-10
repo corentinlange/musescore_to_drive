@@ -1,0 +1,4 @@
+# MuseScore Processor Docker Image
+
+# Add the Dockerfile to .gitignore exceptions if needed
+!Dockerfile

@@ -1,0 +1,37 @@
+name: Process MuseScore Files (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      files_to_process:
+        description: 'JSON array of files to process'
+        required: true
+        type: string
+    secrets:
+      GCP_SERVICE_ACCOUNT_KEY_B64:
+        required: true
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/corentinlange/musescore_to_drive/musescore-processor:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Make scripts executable
+        run: chmod +x src/scripts/*.sh
+
+      - name: Convert MSCZ to PDF and MP3
+        run: |
+          FILES='${{ inputs.files_to_process }}'
+          ./src/scripts/process_musescore.sh $FILES
+
+      - name: Upload to Drive
+        env:
+          GCP_SERVICE_ACCOUNT_KEY_B64: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY_B64 }}
+        run: ./src/scripts/upload_to_drive.sh
