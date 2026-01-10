@@ -10,7 +10,7 @@ if [[ "$*" == *"--debug"* ]]; then
     DEBUG=true
 fi
 
-$DEBUG && echo "🔍 Debug: Chargement de .env..."
+$DEBUG && echo "🔍 Debug: Loading .env..."
 
 # Charger .env si présent
 if [ -f ".env" ]; then
@@ -24,7 +24,7 @@ $DEBUG && echo "🔍 Debug: Vérification des variables d'environnement..."
 
 # Vérifier que la clé existe
 if [ -z "$GCP_SERVICE_ACCOUNT_KEY_B64" ]; then
-    echo "❌ Erreur: GCP_SERVICE_ACCOUNT_KEY_B64 non défini"
+    echo "❌ Error: GCP_SERVICE_ACCOUNT_KEY_B64 non défini"
     echo ""
     echo "Solutions:"
     echo "  1. Vérifier que .env existe: ls -la .env"
@@ -49,5 +49,5 @@ $DEBUG && echo "✅ Base64 décodé (${#SERVICE_ACCOUNT} caractères)"
 $DEBUG && echo ""
 
 # Exécuter le script Python
-$DEBUG && echo "🚀 Lancement du script Python..."
+$DEBUG && echo "🚀 Running Python script..."
 python src/tools/list_drive_tree.py "$@"

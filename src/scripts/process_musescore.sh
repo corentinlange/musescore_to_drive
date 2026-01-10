@@ -63,7 +63,7 @@ for file in "$@"; do
     
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "📄 Traitement: $file"
+    echo "📄 Processing: $file"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     
     # Générer MP3
@@ -71,7 +71,7 @@ for file in "$@"; do
     "$MUSESCORE" -o "$output_dir/${base_name}.mp3" "$file"
     
     # Générer parties (JSON)
-    echo "📋 Extraction des parties..."
+    echo "📋 Extract parts..."
     "$MUSESCORE" "$file" --score-parts > "${base_name}-parts.json"
     
     # Générer MSCZ des parties

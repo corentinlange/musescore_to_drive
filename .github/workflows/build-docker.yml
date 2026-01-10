@@ -3,7 +3,7 @@ name: Build and Push Docker Image
 on:
   workflow_dispatch:
   schedule:
-    # Rebuild l'image chaque dimanche à minuit UTC (hebdomadaire)
+    # Rebuild every Sunday at midnight UTC
     - cron: '0 0 * * 0'
   push:
     branches:

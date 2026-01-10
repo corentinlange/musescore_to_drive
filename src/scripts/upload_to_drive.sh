@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e  # Exit on error
 
-# Script d'upload vers Google Drive
+# Script d'Upload to Google Drive
 # Usage: ./scripts/upload_to_drive.sh
 
 # Configuration
@@ -9,13 +9,13 @@ OUTPUT_DIR="output"
 
 # Charger .env si présent (mode local)
 if [ -f ".env" ]; then
-    echo "📋 Chargement de .env..."
+    echo "📋 Loading .env..."
     export $(grep -v '^#' .env | xargs)
 fi
 
 # Vérifier que GCP_SERVICE_ACCOUNT_KEY_B64 est défini
 if [ -z "$GCP_SERVICE_ACCOUNT_KEY_B64" ]; then
-    echo "❌ Erreur: GCP_SERVICE_ACCOUNT_KEY_B64 non défini"
+    echo "❌ Error: GCP_SERVICE_ACCOUNT_KEY_B64 non défini"
     echo ""
     echo "Solutions:"
     echo "  1. Mode local: Créer un fichier .env avec:"
@@ -36,12 +36,12 @@ export SERVICE_ACCOUNT=$(echo "$GCP_SERVICE_ACCOUNT_KEY_B64" | base64 -d)
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "☁️  Upload vers Google Drive"
+echo "☁️  Upload to Google Drive"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # Vérifier que le script d'upload existe
 if [ ! -f "src/tools/upload_to_drive.py" ]; then
-    echo "❌ Erreur: src/tools/upload_to_drive.py non trouvé"
+    echo "❌ Error: src/tools/upload_to_drive.py non trouvé"
     exit 1
 fi
 
@@ -59,7 +59,7 @@ for mscz_file in *.mscz; do
     output_dir="$OUTPUT_DIR/${base_name}"
     
     if [ ! -d "$output_dir" ] || [ -z "$(ls -A "$output_dir" 2>/dev/null)" ]; then
-        echo "⚠️  Dossier vide ou inexistant: $output_dir"
+        echo "⚠️  Empty or missing folder: $output_dir"
         continue
     fi
     
