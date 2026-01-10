@@ -1,73 +1,15 @@
 #!/usr/bin/env python3
 """
 Script pour afficher l'arborescence d'un dossier Google Drive.
-Usage: python src/tools/list_drive_tree.py [folder_id]
+Usage: python src/drive-api/list_tree.py [folder_id]
 """
 
 import os
 import sys
-import base64
-import json
-from googleapiclient.discovery import build
-from google.oauth2 import service_account
 
-
-def get_service_account():
-    """Récupère les credentials du service account depuis l'environnement."""
-    # Debug
-    debug = '--debug' in sys.argv
-    
-    # Essayer SERVICE_ACCOUNT (déjà décodé par le script bash)
-    json_str = os.getenv('SERVICE_ACCOUNT')
-    if json_str:
-        if debug:
-            print(f"🔍 Debug: SERVICE_ACCOUNT trouvé ({len(json_str)} caractères)")
-        try:
-            creds = json.loads(json_str)
-            if debug:
-                print(f"✅ Debug: JSON parsé avec succès")
-                print(f"   - Type: {creds.get('type')}")
-                print(f"   - Project: {creds.get('project_id')}")
-                print(f"   - Email: {creds.get('client_email')}")
-            return creds
-        except Exception as e:
-            print(f"❌ Erreur parsing SERVICE_ACCOUNT JSON: {e}")
-            if debug:
-                print(f"   Contenu: {json_str[:100]}...")
-            sys.exit(1)
-    
-    # Fallback: GCP_SERVICE_ACCOUNT_KEY_B64 (base64)
-    b64_key = os.getenv('GCP_SERVICE_ACCOUNT_KEY_B64')
-    if b64_key:
-        if debug:
-            print(f"🔍 Debug: GCP_SERVICE_ACCOUNT_KEY_B64 trouvé ({len(b64_key)} caractères)")
-        try:
-            json_str = base64.b64decode(b64_key).decode('utf-8')
-            creds = json.loads(json_str)
-            if debug:
-                print(f"✅ Debug: Base64 décodé et JSON parsé")
-            return creds
-        except Exception as e:
-            print(f"❌ Erreur décodage base64: {e}")
-            if debug:
-                print(f"   Contenu base64: {b64_key[:50]}...")
-            sys.exit(1)
-    
-    print("❌ Erreur: GCP_SERVICE_ACCOUNT_KEY_B64 ou SERVICE_ACCOUNT non défini")
-    print("\nConfigurer dans .env:")
-    print("  GCP_SERVICE_ACCOUNT_KEY_B64='<votre_json_base64>'")
-    print("\nPour débugger:")
-    print("  ./src/scripts/list_drive.sh --debug")
-    sys.exit(1)
-
-
-def build_drive_service():
-    """Crée un service Google Drive authentifié."""
-    creds_info = get_service_account()
-    credentials = service_account.Credentials.from_service_account_info(
-        creds_info, scopes=['https://www.googleapis.com/auth/drive']
-    )
-    return build('drive', 'v3', credentials=credentials)
+# Add drive-api to path
+sys.path.insert(0, os.path.dirname(__file__))
+from connector import DriveConnector
 
 
 def list_folder_contents(service, folder_id='root'):
@@ -171,7 +113,10 @@ def main():
     args = parser.parse_args()
     
     print("🔍 Connexion à Google Drive...")
-    service = build_drive_service()
+    
+    # Use DriveConnector for authentication
+    drive_connector = DriveConnector()
+    service = drive_connector.drive_service
     
     print("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print_tree(service, args.folder_id, '', True, args.name)
