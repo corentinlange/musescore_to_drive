@@ -3,8 +3,8 @@ name: Build and Push Docker Image
 on:
   workflow_dispatch:
   schedule:
-    # Rebuild every Sunday at midnight UTC
-    - cron: '0 0 * * 0'
+    # Rebuild every Monday at 8:00 AM UTC
+    - cron: '0 8 * * 1'
   push:
     branches:
       - main
@@ -12,17 +12,76 @@ on:
       - 'src/Dockerfile'
       - 'src/.dockerignore'
       - 'src/tools/requirements.txt'
+      - 'src/scripts/get-musescore-url.sh'
 
 jobs:
-  build:
+  test-and-build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
+      pull-requests: write
+      issues: write
     
     steps:
       - uses: actions/checkout@v4
       
+      # Test latest MuseScore version on weekly schedule
+      - name: Test latest MuseScore version
+        if: github.event_name == 'schedule'
+        id: test-latest
+        run: |
+          echo "Testing latest MuseScore version..."
+          LATEST_URL=$(bash ./src/scripts/get-musescore-url.sh)
+          VERSION=$(echo "$LATEST_URL" | grep -oP 'v\K[0-9.]+' | head -1)
+          
+          echo "url=$LATEST_URL" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+          # Build and test with latest version
+          if docker build --build-arg MUSESCORE_URL="$LATEST_URL" -t musescore-processor:test ./src && \
+             docker run --rm musescore-processor:test AppRun --version; then
+            echo "compatible=true" >> $GITHUB_OUTPUT
+            echo "✅ MuseScore $VERSION is compatible"
+          else
+            echo "compatible=false" >> $GITHUB_OUTPUT
+            echo "❌ MuseScore $VERSION is not compatible"
+          fi
+        continue-on-error: true
+      
+      # Update Dockerfile if new version is compatible
+      - name: Update to latest MuseScore version
+        if: github.event_name == 'schedule' && steps.test-latest.outputs.compatible == 'true'
+        run: |
+          LATEST_URL="${{ steps.test-latest.outputs.url }}"
+          VERSION="${{ steps.test-latest.outputs.version }}"
+          
+          # Update Dockerfile
+          sed -i "s|ARG MUSESCORE_URL=.*|ARG MUSESCORE_URL=$LATEST_URL|" ./src/Dockerfile
+          sed -i "s|# Default: stable version.*|# Default: stable version $VERSION (tested and verified)|" ./src/Dockerfile
+          
+          # Commit if changed
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ./src/Dockerfile
+          git diff --staged --quiet || git commit -m "chore: upgrade MuseScore to $VERSION"
+          git push
+      
+      # Create issue if new version is incompatible
+      - name: Report incompatible version
+        if: github.event_name == 'schedule' && steps.test-latest.outputs.compatible == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `❌ MuseScore ${{ steps.test-latest.outputs.version }} incompatible`,
+              body: `MuseScore ${{ steps.test-latest.outputs.version }} failed compatibility tests.\n\nKeeping current stable version.\n\nURL: ${{ steps.test-latest.outputs.url }}`,
+              labels: ['dependencies', 'musescore']
+            })
+      
+      # Build and push Docker image
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -46,3 +105,4 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
