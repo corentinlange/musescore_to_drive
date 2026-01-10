@@ -33,8 +33,5 @@ jobs:
           GCP_SERVICE_ACCOUNT_KEY_B64: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY_B64 }}
           DRIVE_FOLDER_ID: ${{ vars.DRIVE_FOLDER_ID }}
         run: |
-          # Decode service account
-          export SERVICE_ACCOUNT=$(echo "$GCP_SERVICE_ACCOUNT_KEY_B64" | base64 -d)
-          
-          # Upload all output files
+          # Upload all output files (connector.py will decode the key)
           python3 src/drive-api/upload_all.py output

@@ -14,10 +14,21 @@ SERVICE_ACCOUNT_FILE = "service_account.json"
 class DriveConnector:
 
     def __init__(self):
-        base64_string = os.getenv("SERVICE_ACCOUNT")
-        decoded_bytes = base64.b64decode(base64_string)
-        json_str = decoded_bytes.decode("utf-8")
-        service_account_info = json.loads(json_str)
+        # Try SERVICE_ACCOUNT first (already decoded)
+        service_account_json = os.getenv("SERVICE_ACCOUNT")
+        
+        # Fallback to GCP_SERVICE_ACCOUNT_KEY_B64 (base64 encoded)
+        if not service_account_json or service_account_json.strip() == "":
+            base64_string = os.getenv("GCP_SERVICE_ACCOUNT_KEY_B64")
+            if base64_string:
+                decoded_bytes = base64.b64decode(base64_string)
+                service_account_json = decoded_bytes.decode("utf-8")
+            else:
+                raise ValueError(
+                    "Neither SERVICE_ACCOUNT nor GCP_SERVICE_ACCOUNT_KEY_B64 environment variable is set"
+                )
+        
+        service_account_info = json.loads(service_account_json)
 
         with open(SERVICE_ACCOUNT_FILE, "w") as f:
             json.dump(service_account_info, f, indent=4)
