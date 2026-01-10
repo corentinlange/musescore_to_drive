@@ -55,37 +55,32 @@ class DriveConnector:
         return created_folder["id"]
 
     def upload_file(self, file_path, parent_folder_id=None, replace=False):
-        folders = self.list_folder(parent_folder_id)
-        folder_name = os.path.basename(file_path).split(".")[0].split("-")[0]
+        """Upload a file directly to the specified parent folder."""
         file_name = os.path.basename(file_path)
-        file_metadata = {}
+        
+        # Check if file already exists and delete if replace=True
+        if replace and parent_folder_id:
+            existing_files = self.list_folder(parent_folder_id)
+            for existing_file in existing_files:
+                if existing_file.get("name") == file_name and existing_file.get("mimeType") != "application/vnd.google-apps.folder":
+                    self.delete_files(existing_file["id"])
+        
+        # Prepare file metadata
+        file_metadata = {
+            "name": file_name,
+            "description": "Fichier uploadé par le Bot GitHub"
+        }
+        if parent_folder_id:
+            file_metadata["parents"] = [parent_folder_id]
 
-        for folder_file in folders:
-            if folder_file["mimeType"] == "application/vnd.google-apps.folder":
-                if folder_file["name"] == folder_name:
-                    files_in_folder = self.list_folder(folder_file["id"])
-                    for file_in_folder in files_in_folder:
-                        if file_in_folder["name"] == file_name and replace:
-                            self.delete_files(file_in_folder["id"])
-
-                    file_metadata = {
-                        "name": file_name,
-                        "parents": [folder_file["id"]],
-                        "description": "Partition mise à jour par le Bot GitHub" # Traçabilité
-                    }
-                    break
-
-        if not file_metadata:
-            new_folder_id = self.create_folder(folder_name, parent_folder_id)
-            file_metadata = {
-                "name": file_name,
-                "parents": [new_folder_id],
-                "description": "Nouvelle partition générée par le Bot GitHub" # Traçabilité
-            }
-
+        # Determine MIME type
         mime_type = "application/octet-stream"
         if file_path.endswith(".mscz"):
             mime_type = "application/x-musescore"
+        elif file_path.endswith(".pdf"):
+            mime_type = "application/pdf"
+        elif file_path.endswith(".mp3"):
+            mime_type = "audio/mpeg"
             
         media = MediaFileUpload(file_path, mimetype=mime_type)
         uploaded_file = self.drive_service.files().create(
@@ -94,7 +89,7 @@ class DriveConnector:
             fields="id"
         ).execute()
         
-        print(f"✅ Upload réussi : {file_name} (Propriétaire: Toi, Quota: Tes 2 To)")
+        print(f"   ✅ Uploaded: {file_name}")
 
     def list_folder(self, parent_folder_id=None):
         query = f"'{parent_folder_id}' in parents and trashed=false" if parent_folder_id else None

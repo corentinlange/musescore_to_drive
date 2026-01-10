@@ -1,13 +1,16 @@
+# DEPRECATED - Use upload_all.py instead
+#
+# This script is kept for backward compatibility
+# New code should use: python src/drive-api/upload_all.py
+
 import sys
+import os
 
-from dotenv import load_dotenv
-
-from config import DRIVE_FOLDERS_ID
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'drive-api'))
-from connector import DriveConnector
 
-load_dotenv()
+# Redirect to upload_all
+print("⚠️  This script is deprecated. Use: python src/drive-api/upload_all.py")
+print("Redirecting...")
 
-if __name__ == "__main__":
-    drive_connector = DriveConnector()
-    drive_connector.upload_file(sys.argv[1], DRIVE_FOLDERS_ID["PARTOS"])
+from upload_all import main
+main()
