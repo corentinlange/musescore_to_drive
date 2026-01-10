@@ -1,0 +1,46 @@
+name: Test Drive Connection
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-upload:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/corentinlange/musescore_to_drive/musescore-processor:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create test file
+        run: |
+          mkdir -p test_output
+          echo "Test file created at $(date)" > test_output/test.txt
+          echo "Workflow run: ${{ github.run_number }}" >> test_output/test.txt
+
+      - name: Test upload to Drive
+        env:
+          GDRIVE_TOKEN: ${{ secrets.GDRIVE_TOKEN }}
+          DRIVE_FOLDER_ID: ${{ vars.DRIVE_FOLDER_ID }}
+        run: |
+          echo "📤 Testing upload..."
+          python3 src/drive-api/upload_all.py test_output
+
+      - name: Verify upload
+        env:
+          GDRIVE_TOKEN: ${{ secrets.GDRIVE_TOKEN }}
+          DRIVE_FOLDER_ID: ${{ vars.DRIVE_FOLDER_ID }}
+        run: |
+          echo "🔍 Listing Drive folder..."
+          python3 src/drive-api/list_tree.py ${{ vars.DRIVE_FOLDER_ID }} --name "Test Folder"
+
+      - name: Summary
+        run: |
+          echo "✅ Test completed!"
+          echo "Si vous voyez 'test.txt' dans l'arborescence ci-dessus, l'upload fonctionne."
+          echo ""
+          echo "⚠️  Note: Le fichier test.txt restera sur Drive."
+          echo "Supprimez-le manuellement si vous le souhaitez."
