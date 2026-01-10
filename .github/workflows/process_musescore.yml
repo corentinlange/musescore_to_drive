@@ -8,7 +8,7 @@ on:
         required: true
         type: string
     secrets:
-      GCP_SERVICE_ACCOUNT_KEY_B64:
+      GDRIVE_TOKEN:
         required: true
 
 jobs:
