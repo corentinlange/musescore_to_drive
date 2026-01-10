@@ -1,76 +1,61 @@
-# 🧪 Test en Local - MuseScore to Drive
+# Local Testing Guide
 
-Ce guide explique comment tester les workflows **en local** avant de les exécuter dans GitHub Actions.
-
-## Avantages du test local
-
-- ⚡ **Rapidité** : Pas besoin de push pour tester
-- 🐛 **Debugging** : Plus facile de débugger localement
-- 💰 **Économie** : Pas de consommation de minutes GitHub Actions
-- ✅ **Confiance** : Tester avant de commit
+Guide for testing scripts locally before pushing to CI.
 
 ---
 
-## Prérequis
+## Prerequisites
 
-### 1. MuseScore installé
+### 1. MuseScore Installed
 
-Choisissez une option :
+**Option A: Local installation (recommended)**
+- Linux: `sudo apt install musescore3` or download from musescore.org
+- macOS: Download from musescore.org
+- Windows: Download from musescore.org
 
-**Option A : Installation locale (recommandé)**
-- **Linux** : `sudo apt install musescore3` ou télécharger depuis [musescore.org](https://musescore.org)
-- **macOS** : `brew install musescore` ou télécharger depuis [musescore.org](https://musescore.org)
-- **Windows** : Télécharger depuis [musescore.org](https://musescore.org) ou utiliser WSL
-
-**Option B : AppImage (Linux uniquement)**
+**Option B: Docker**
 ```bash
-# Télécharger la dernière version
-wget https://github.com/musescore/MuseScore/releases/download/v4.6.5/MuseScore-Studio-4.6.5.253511702-x86_64.AppImage
-
-# Extraire
-chmod +x MuseScore-Studio-4.6.5.253511702-x86_64.AppImage
-./MuseScore-Studio-4.6.5.253511702-x86_64.AppImage --appimage-extract
-# MuseScore sera disponible dans ./squashfs-root/AppRun
+docker build -t musescore-processor:local ./src
 ```
 
-**Option C : Docker (tous OS)**
+**Option C: AppImage (Linux)**
 ```bash
-# Build l'image locale
-docker build -t musescore-processor:local .
-
-# Utiliser avec les scripts
-docker run -v $(pwd):/workspace -w /workspace musescore-processor:local \
-  ./scripts/process_musescore.sh test.mscz
+wget https://github.com/musescore/MuseScore/releases/download/v4.4.4/MuseScore-Studio-4.4.4.241220200-x86_64.AppImage
+chmod +x MuseScore-*.AppImage
+./MuseScore-*.AppImage --appimage-extract
 ```
 
-### 2. Python avec dépendances
+### 2. Python Environment
+
+Create virtual environment:
 
 ```bash
-# Créer venv avec uv (rapide)
+# With uv (recommended)
 uv venv
 source .venv/bin/activate  # Linux/macOS
 .venv\Scripts\activate     # Windows
 
-# Installer dépendances
+# Install dependencies
 uv pip install -r src/tools/requirements.txt
 ```
 
-### 3. Configuration des secrets
+### 3. Configure Secrets
 
 ```bash
-# Copier le template
+# Copy template
 cp .env.example .env
 
-# Éditer .env avec vos vraies clés
-nano .env  # ou votre éditeur préféré
+# Edit .env with your keys
+nano .env
 ```
 
-Format du fichier `.env` :
+`.env` format:
 ```bash
 GCP_SERVICE_ACCOUNT_KEY_B64='YOUR_BASE64_ENCODED_JSON_HERE'
+DRIVE_FOLDER_ID='YOUR_DRIVE_FOLDER_ID_HERE'
 ```
 
-Pour encoder votre JSON :
+Encode your JSON:
 ```bash
 # Linux/macOS/WSL
 cat service-account.json | base64 -w 0
@@ -79,128 +64,160 @@ cat service-account.json | base64 -w 0
 [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Content service-account.json -Raw)))
 ```
 
-> ⚠️ **Important** : `.env` est dans `.gitignore` - ne le committez JAMAIS !
+> Important: `.env` is in `.gitignore` - never commit it
 
 ---
 
-## Utilisation
+## Usage
 
-### Test de conversion uniquement
+### Quick Test
 
 ```bash
-# Convertir un seul fichier
-./scripts/process_musescore.sh mon_fichier.mscz
+# With venv activated
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 
-# Convertir plusieurs fichiers
-./scripts/process_musescore.sh *.mscz
+# Test conversion
+./src/scripts/process_musescore.sh test.mscz
 
-# Convertir avec debug
-bash -x ./scripts/process_musescore.sh test.mscz
+# Check output
+ls output/test/
+
+# Test upload
+./src/scripts/upload_to_drive.sh
 ```
 
-**Résultat** : Fichiers générés dans `output/nom_fichier/`
-- `nom_fichier.mp3` - Audio
-- `nom_fichier.pdf` - Partition complète
-- `partie1.pdf`, `partie2.pdf`, ... - Parties individuelles
+### Available Scripts
 
-### Test d'upload uniquement
+| Script | Description | Example |
+|--------|-------------|---------|
+| `process_musescore.sh` | Convert MSCZ to PDF/MP3 | `./src/scripts/process_musescore.sh *.mscz` |
+| `upload_to_drive.sh` | Upload to Drive | `./src/scripts/upload_to_drive.sh` |
+| `list_drive.sh` | Display Drive tree | `./src/scripts/list_drive.sh [folder_id]` |
+
+### Conversion Details
+
+**process_musescore.sh** performs:
+1. MP3 generation
+2. Individual parts extraction
+3. PDF generation
+
+Output in `output/<filename>/` directory.
+
+### Upload Details
+
+**upload_to_drive.sh** performs:
+1. Load `.env` config
+2. Decode base64 service account
+3. Upload all files from `output/` folders
+
+---
+
+## Troubleshooting
+
+### MuseScore Not Found
+
+**Solutions**:
+1. Install MuseScore: `sudo apt install musescore3`
+2. Extract AppImage: `./MuseScore-*.AppImage --appimage-extract`
+3. Use Docker: `docker build -t musescore-processor:local ./src`
+
+### GCP_SERVICE_ACCOUNT_KEY_B64 Not Defined
+
+**Solutions**:
+1. Check `.env` exists: `ls -la .env`
+2. Check content: `cat .env`
+3. Content must be base64 (not raw JSON)
+4. Encode JSON: `cat service-account.json | base64 -w 0`
+
+### Python Module Error
 
 ```bash
-# Upload vers Drive (nécessite .env configuré)
-./scripts/upload_to_drive.sh
+# Activate venv
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r src/tools/requirements.txt
 ```
 
-### Test complet (conversion + upload)
+### Permission Denied on Scripts
 
 ```bash
-# Workflow complet
-./scripts/process_musescore.sh *.mscz && ./scripts/upload_to_drive.sh
+chmod +x src/scripts/*.sh
 ```
 
 ---
 
-## Résolution de problèmes
+## Development Workflow
 
-### ❌ `MuseScore non trouvé`
+Recommended workflow:
 
-**Solutions** :
-1. Installer MuseScore localement (voir Prérequis)
-2. Extraire l'AppImage : `./MuseScore-*.AppImage --appimage-extract`
-3. Utiliser Docker : `docker build -t musescore-processor:local .`
-
-### ❌ `GCP_SERVICE_ACCOUNT_KEY_B64 non défini`
-
-**Solutions** :
-1. Vérifier que `.env` existe : `ls -la .env`
-2. Vérifier le format dans `.env` : `cat .env`
-3. Le contenu doit être du **base64** (pas du JSON brut)
-4. Encoder votre JSON : `cat service-account.json | base64 -w 0`
-
-### ❌ Erreur Python `No module named 'google'`
-
-**Solution** :
 ```bash
-# Activer venv
-source .venv/bin/activate  # Linux/macOS
-.venv\Scripts\activate     # Windows
+# 1. Edit/create in MuseScore
+# 2. Save .mscz at project root
 
-# Installer dépendances
-# Installer dépendances
-pip install -r tools/requirements.txt
-```
+# 3. Test locally
+source .venv/bin/activate
+./src/scripts/process_musescore.sh my_song.mscz
 
-### ❌ Permission denied sur les scripts
+# 4. Check output
+ls output/my_song/
 
-**Solution** :
-```bash
-# Rendre les scripts exécutables
-chmod +x scripts/*.sh
+# 5. Test upload (optional)
+./src/scripts/upload_to_drive.sh
+
+# 6. If OK, commit and push
+git add my_song.mscz
+git commit -m "Add new song"
+git push
 ```
 
 ---
 
-## Comparaison Local vs CI
+## Comparison: Local vs CI
 
-| Aspect | Local | CI (GitHub Actions) |
-|--------|-------|---------------------|
-| **Secrets** | `.env` | GitHub Secrets |
-| **MuseScore** | Installation locale ou AppImage | Docker pré-configuré |
-| **Speed** | Instant | ~30s setup |
-| **Debugging** | Facile (logs directs) | Difficile (via logs GitHub) |
-| **Usage** | Développement | Production |
-
----
-
-## Workflow recommandé
-
-1. **Développer en local** :
-   ```bash
-   # Tester rapidement
-   ./scripts/process_musescore.sh test.mscz
-   ```
-
-2. **Vérifier avant commit** :
-   ```bash
-   # Test complet
-   ./scripts/process_musescore.sh *.mscz && ./scripts/upload_to_drive.sh
-   ```
-
-3. **Commit et push** :
-   ```bash
-   git add *.mscz
-   git commit -m "feat: ajout nouvelle partition"
-   git push
-   ```
-
-4. **Vérifier la CI** : GitHub Actions exécute automatiquement les mêmes scripts
+| Aspect | Local | CI |
+|--------|-------|-----|
+| **Speed** | Instant | 1-2 min |
+| **Setup** | Python + MuseScore | Docker image |
+| **Secrets** | `.env` file | GitHub Secrets |
+| **Output** | `output/` folder | Uploaded to Drive |
+| **Use case** | Quick testing | Production |
 
 ---
 
-## Scripts disponibles
+## Debug Mode
 
-| Script | Description | Usage |
-|--------|-------------|-------|
-| `process_musescore.sh` | Conversion MSCZ → PDF/MP3 | `./scripts/process_musescore.sh *.mscz` |
-| `upload_to_drive.sh` | Upload vers Drive | `./scripts/upload_to_drive.sh` |
+Use `--debug` flag for detailed output:
 
-Les deux scripts utilisent **exactement la même logique** en local et en CI !
+```bash
+./src/scripts/list_drive.sh --debug
+```
+
+Displays:
+- .env loading
+- Environment variables
+- Base64 decoding
+- API calls
+
+---
+
+## Tips
+
+**Tip 1**: Test conversion before upload
+```bash
+./src/scripts/process_musescore.sh file.mscz
+# Check output/file/ folder
+# Only then: ./src/scripts/upload_to_drive.sh
+```
+
+**Tip 2**: Use Docker for exact CI environment
+```bash
+docker build -t musescore-processor:local ./src
+docker run -v $(pwd):/workspace musescore-processor:local \
+  ./src/scripts/process_musescore.sh test.mscz
+```
+
+**Tip 3**: List Drive to verify uploads
+```bash
+./src/scripts/list_drive.sh
+```
