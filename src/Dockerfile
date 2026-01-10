@@ -20,8 +20,7 @@ RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
 
 # Download and extract MuseScore (auto-detect latest version)
 RUN echo "Fetching latest MuseScore version..." && \
-    LATEST_RELEASE=$(curl -sL -H "User-Agent: Docker-MuseScore-Builder" \
-                          "https://api.github.com/repos/musescore/MuseScore/releases/latest") && \
+    LATEST_RELEASE=$(curl -sL -H "User-Agent: Docker-MuseScore-Builder" "https://api.github.com/repos/musescore/MuseScore/releases/latest") && \
     VERSION=$(echo "$LATEST_RELEASE" | grep -Po '"tag_name": *"\K[^"]*' | sed 's/^v//') && \
     APPIMAGE_URL=$(echo "$LATEST_RELEASE" | grep -Po '"browser_download_url": *"\K[^"]*' | grep 'x86_64.AppImage$' | head -1) && \
     echo "Detected version: v${VERSION}" && \
