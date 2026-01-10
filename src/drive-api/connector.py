@@ -1,148 +1,100 @@
 import os
 import base64
 import json
+import io
 
-from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-
 SCOPES = ["https://www.googleapis.com/auth/drive"]
-SERVICE_ACCOUNT_FILE = "service_account.json"
-
 
 class DriveConnector:
-
     def __init__(self):
-        # Try SERVICE_ACCOUNT first (already decoded)
-        service_account_json = os.getenv("SERVICE_ACCOUNT")
+        # Récupération du token utilisateur depuis le secret GitHub
+        # On s'attend à ce que le secret soit le contenu brut du fichier token.json
+        token_data = os.getenv("GDRIVE_TOKEN")
         
-        # Fallback to GCP_SERVICE_ACCOUNT_KEY_B64 (base64 encoded)
-        if not service_account_json or service_account_json.strip() == "":
-            base64_string = os.getenv("GCP_SERVICE_ACCOUNT_KEY_B64")
-            if base64_string:
-                decoded_bytes = base64.b64decode(base64_string)
-                service_account_json = decoded_bytes.decode("utf-8")
-            else:
-                raise ValueError(
-                    "Neither SERVICE_ACCOUNT nor GCP_SERVICE_ACCOUNT_KEY_B64 environment variable is set"
-                )
-        
-        service_account_info = json.loads(service_account_json)
+        if not token_data:
+            raise Exception("Erreur : Le secret GDRIVE_TOKEN est vide ou manquant.")
 
-        with open(SERVICE_ACCOUNT_FILE, "w") as f:
-            json.dump(service_account_info, f, indent=4)
+        # Chargement des informations du token
+        try:
+            # Si tu l'as encodé en base64 dans ton YAML (recommandé), on décode
+            # Sinon, on charge le JSON directement
+            try:
+                decoded_token = base64.b64decode(token_data).decode("utf-8")
+                token_info = json.loads(decoded_token)
+            except:
+                token_info = json.loads(token_data)
+                
+            credentials = Credentials.from_authorized_user_info(token_info, scopes=SCOPES)
+        except Exception as e:
+            raise Exception(f"Erreur lors du chargement du token : {str(e)}")
 
-        credentials = service_account.Credentials.from_service_account_file(
-            SERVICE_ACCOUNT_FILE, scopes=SCOPES
-        )
-
+        # Construction du service (agira en ton nom)
         self.drive_service = build("drive", "v3", credentials=credentials)
 
     def create_folder(self, folder_name, parent_folder_id=None):
-        """Create a folder in Google Drive and return its ID. Returns existing folder if found."""
-        # Check if folder already exists
-        existing_folders = self.list_folder(parent_folder_id)
-        for folder in existing_folders:
-            if folder.get("mimeType") == "application/vnd.google-apps.folder" and folder.get("name") == folder_name:
-                # Folder already exists
-                return folder["id"]
-        
-        # Create new folder if not found
         folder_metadata = {
             "name": folder_name,
             "mimeType": "application/vnd.google-apps.folder",
             "parents": [parent_folder_id] if parent_folder_id else [],
-            
+            "description": "Dossier créé par le Bot GitHub" # Pour la traçabilité
         }
-
-        created_folder = (
-            self.drive_service.files()
-            .create(body=folder_metadata, fields="id", supportsAllDrives=True)
-            .execute()
-        )
-
+        created_folder = self.drive_service.files().create(body=folder_metadata, fields="id").execute()
         return created_folder["id"]
 
     def upload_file(self, file_path, parent_folder_id=None, replace=False):
-        """Upload a file to Google Drive.
-        
-        Args:
-            file_path: Path to the file to upload
-            parent_folder_id: ID of the parent folder
-            replace: If True, delete existing file with same name first
-        """
+        folders = self.list_folder(parent_folder_id)
+        folder_name = os.path.basename(file_path).split(".")[0].split("-")[0]
         file_name = os.path.basename(file_path)
-        
-        # Check if file already exists and delete if replace=True
-        if replace and parent_folder_id:
-            existing_files = self.list_folder(parent_folder_id)
-            for existing_file in existing_files:
-                if existing_file.get("name") == file_name and existing_file.get("mimeType") != "application/vnd.google-apps.folder":
-                    self.delete_files(existing_file["id"])
-        
-        # Prepare file metadata
-        file_metadata = {
-            "name": file_name,
-        }
-        if parent_folder_id:
-            file_metadata["parents"] = [parent_folder_id]
-        
-        # Determine MIME type
+        file_metadata = {}
+
+        for folder_file in folders:
+            if folder_file["mimeType"] == "application/vnd.google-apps.folder":
+                if folder_file["name"] == folder_name:
+                    files_in_folder = self.list_folder(folder_file["id"])
+                    for file_in_folder in files_in_folder:
+                        if file_in_folder["name"] == file_name and replace:
+                            self.delete_files(file_in_folder["id"])
+
+                    file_metadata = {
+                        "name": file_name,
+                        "parents": [folder_file["id"]],
+                        "description": "Partition mise à jour par le Bot GitHub" # Traçabilité
+                    }
+                    break
+
+        if not file_metadata:
+            new_folder_id = self.create_folder(folder_name, parent_folder_id)
+            file_metadata = {
+                "name": file_name,
+                "parents": [new_folder_id],
+                "description": "Nouvelle partition générée par le Bot GitHub" # Traçabilité
+            }
+
         mime_type = "application/octet-stream"
         if file_path.endswith(".mscz"):
             mime_type = "application/x-musescore"
-        elif file_path.endswith(".pdf"):
-            mime_type = "application/pdf"
-        elif file_path.endswith(".mp3"):
-            mime_type = "audio/mpeg"
-        
-        # Upload file
+            
         media = MediaFileUpload(file_path, mimetype=mime_type)
-        uploaded_file = (
-            self.drive_service.files()
-            .create(body=file_metadata, media_body=media, fields="id,name")
-            .execute()
-        )
+        uploaded_file = self.drive_service.files().create(
+            body=file_metadata, 
+            media_body=media,
+            fields="id"
+        ).execute()
         
-        print(f"   ✅ Uploaded: {file_name}")
-        return uploaded_file["id"]
+        print(f"✅ Upload réussi : {file_name} (Propriétaire: Toi, Quota: Tes 2 To)")
 
-    def list_folder(self, parent_folder_id=None, delete=False):
-        """List folders and files in Google Drive."""
-        results = (
-            self.drive_service.files()
-            .list(
-                q=(
-                    f"'{parent_folder_id}' in parents and trashed=false"
-                    if parent_folder_id
-                    else None
-                ),
-                pageSize=1000,
-                fields="nextPageToken, files(id, name, mimeType)",
-            )
-            .execute()
-        )
-        items = results.get("files", [])
-        return items
+    def list_folder(self, parent_folder_id=None):
+        query = f"'{parent_folder_id}' in parents and trashed=false" if parent_folder_id else None
+        results = self.drive_service.files().list(
+            q=query,
+            pageSize=1000,
+            fields="nextPageToken, files(id, name, mimeType)"
+        ).execute()
+        return results.get("files", [])
 
     def delete_files(self, file_or_folder_id):
-        """Delete a file or folder in Google Drive by ID."""
-        try:
-            self.drive_service.files().delete(fileId=file_or_folder_id).execute()
-            print(f"Successfully deleted file/folder with ID: {file_or_folder_id}")
-        except Exception as e:
-            print(f"Error deleting file/folder with ID: {file_or_folder_id}")
-            print(f"Error details: {str(e)}")
-
-    def download_file(file_id, destination_path):
-        """Download a file from Google Drive by its ID."""
-        request = self.drive_service.files().get_media(fileId=file_id)
-        fh = io.FileIO(destination_path, mode="wb")
-
-        downloader = MediaIoBaseDownload(fh, request)
-
-        done = False
-        while not done:
-            status, done = downloader.next_chunk()
-            print(f"Download {int(status.progress() * 100)}%.")
+        self.drive_service.files().delete(fileId=file_or_folder_id).execute()

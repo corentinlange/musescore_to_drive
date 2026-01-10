@@ -30,7 +30,7 @@ jobs:
 
       - name: Upload to Drive
         env:
-          GCP_SERVICE_ACCOUNT_KEY_B64: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY_B64 }}
+          GDRIVE_TOKEN: ${{ secrets.GDRIVE_TOKEN }}
           DRIVE_FOLDER_ID: ${{ vars.DRIVE_FOLDER_ID }}
         run: |
           # Upload all output files (connector.py will decode the key)

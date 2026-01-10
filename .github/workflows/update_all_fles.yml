@@ -38,4 +38,4 @@ jobs:
     with:
       file_to_process: ${{ matrix.file }}
     secrets:
-      GCP_SERVICE_ACCOUNT_KEY_B64: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY_B64 }}
+      GDRIVE_TOKEN: ${{ secrets.GDRIVE_TOKEN }}
