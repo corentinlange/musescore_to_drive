@@ -36,11 +36,20 @@ class DriveConnector:
         self.drive_service = build("drive", "v3", credentials=credentials)
 
     def create_folder(self, folder_name, parent_folder_id=None):
+        """Create a folder in Google Drive and return its ID. Returns existing folder if found."""
+        # Check if folder already exists
+        existing_folders = self.list_folder(parent_folder_id)
+        for folder in existing_folders:
+            if folder.get("mimeType") == "application/vnd.google-apps.folder" and folder.get("name") == folder_name:
+                # Folder already exists, return its ID
+                return folder["id"]
+        
+        # Create new folder if not found
         folder_metadata = {
             "name": folder_name,
             "mimeType": "application/vnd.google-apps.folder",
             "parents": [parent_folder_id] if parent_folder_id else [],
-            "description": "Dossier créé par le Bot GitHub" # Pour la traçabilité
+            "description": "Dossier créé par le Bot GitHub"
         }
         created_folder = self.drive_service.files().create(body=folder_metadata, fields="id").execute()
         return created_folder["id"]
