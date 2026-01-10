@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "*.mscz"
+      - "**/*.mscz"
   workflow_dispatch:
 
 jobs:
