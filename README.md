@@ -8,12 +8,12 @@ Automated GitHub Actions workflows to convert MuseScore (`.mscz`) files to PDF a
 
 ## Quick Start
 
-**New here?** Follow the complete guide: [SETUP.md](SETUP.md)
+**New here?** Follow the complete guide: [SETUP.md](src/docs/SETUP.md)
 
 ### Setup (10 minutes, zero local install):
 
 1. Fork this repository
-2. Create a Google Service Account → [Guide](SETUP.md#create-google-service-account)
+2. Create a Google Service Account → [Guide](src/docs/SETUP.md#create-google-service-account)
 3. Configure GitHub secrets: `GCP_SERVICE_ACCOUNT_KEY_B64` + `DRIVE_FOLDER_ID`
 
 Done! Add your `.mscz` files via GitHub interface (or git push) and CI handles the rest.
