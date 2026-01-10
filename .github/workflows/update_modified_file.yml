@@ -23,7 +23,7 @@ jobs:
         uses: tj-actions/changed-files@v45
         with:
           files: |
-            *.mscz
+            **/*.mscz
 
       - name: List all changed files
         env:
