@@ -42,15 +42,15 @@ class DriveConnector:
     def create_folder(self, folder_name, parent_folder_id=None):
         """Create a folder in Google Drive and return its ID. Returns existing folder if found."""
         # Check if folder already exists
-        folders = self.list_folder(parent_folder_id)
-        for folder in folders:
-            if folder["mimeType"] == "application/vnd.google-apps.folder" and folder["name"] == folder_name:
-                print(f'Found existing folder: {folder_name} (ID: {folder["id"]})')
+        existing_folders = self.list_folder(parent_folder_id)
+        for folder in existing_folders:
+            if folder.get("mimeType") == "application/vnd.google-apps.folder" and folder.get("name") == folder_name:
+                # Folder already exists
                 return folder["id"]
         
         # Create new folder if not found
         folder_metadata = {
-            "name": f"{folder_name}",
+            "name": folder_name,
             "mimeType": "application/vnd.google-apps.folder",
             "parents": [parent_folder_id] if parent_folder_id else [],
         }
@@ -61,7 +61,6 @@ class DriveConnector:
             .execute()
         )
 
-        print(f'Created folder: {folder_name} (ID: {created_folder["id"]})')
         return created_folder["id"]
 
     def upload_file(self, file_path, parent_folder_id=None, replace=False):
