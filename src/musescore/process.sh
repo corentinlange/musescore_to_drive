@@ -79,11 +79,19 @@ for file in "$@"; do
     echo "📄 Processing: $file"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     
-    # Générer MP3
+    # Generate MP3
     echo "🎵 Génération MP3..."
     "$MUSESCORE" -o "$output_dir/${base_name}.mp3" "$file"
     
-    # Générer parties (JSON)
+    # Generate MIDI
+    echo "🎹 Génération MIDI..."
+    "$MUSESCORE" -o "$output_dir/${base_name}.mid" "$file"
+    
+    # Generate MusicXML
+    echo "📝 Génération MusicXML..."
+    "$MUSESCORE" -o "$output_dir/${base_name}.musicxml" "$file"
+    
+    # Generate parts (JSON)
     echo "📋 Extract parts..."
     "$MUSESCORE" "$file" --score-parts > "${base_name}-parts.json"
     
