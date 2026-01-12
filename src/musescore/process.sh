@@ -1,74 +1,61 @@
 #!/bin/bash
-set -e  # Exit on error
+set -e  # Quitte le script en cas d'erreur
 
-# Script de conversion MSCZ → PDF/MP3
-# Usage: ./src/musescore/process.sh fichier1.mscz fichier2.mscz ...
-
-# Configuration
+# --- CONFIGURATION ---
 OUTPUT_DIR="output"
-QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-offscreen}"
-export QT_QPA_PLATFORM
+export QT_QPA_PLATFORM="offscreen"
 
-# Détecter MuseScore
+# --- DÉTECTION DE MUSESCORE ---
 if [ -f "/opt/musescore/AppRun" ]; then
-    # CI/Docker environment
     MUSESCORE="/opt/musescore/AppRun"
     echo "✓ MuseScore détecté (Docker): $MUSESCORE"
 elif command -v mscore &> /dev/null; then
-    # Local installation (Linux/macOS)
     MUSESCORE="mscore"
     echo "✓ MuseScore détecté (local): $(which mscore)"
 elif command -v musescore &> /dev/null; then
-    # Alternative command name
     MUSESCORE="musescore"
     echo "✓ MuseScore détecté (local): $(which musescore)"
 elif [ -f "./squashfs-root/AppRun" ]; then
-    # Extracted AppImage in current directory
     MUSESCORE="./squashfs-root/AppRun"
     echo "✓ MuseScore détecté (AppImage extrait): $MUSESCORE"
 else
     echo "❌ Erreur: MuseScore non trouvé"
-    echo "Solutions:"
-    echo "  - Installer MuseScore localement"
-    echo "  - Extraire l'AppImage: ./MuseScore-*.AppImage --appimage-extract"
-    echo "  - Utiliser Docker: docker run -v \$(pwd):/workspace musescore-processor"
     exit 1
 fi
 
-# Vérifier qu'il y a des fichiers à traiter
+# --- GESTION DU WRAPPER GRAPHIQUE (XVFB) ---
+# Nécessaire pour éviter l'Exit Code 40 sur serveur
+RUNNER=""
+if command -v xvfb-run &> /dev/null; then
+    RUNNER="xvfb-run --auto-servernum"
+    echo "✓ Serveur graphique virtuel (xvfb) prêt."
+else
+    echo "⚠️  xvfb-run non trouvé, exécution directe (peut échouer sur serveur sans écran)."
+fi
+
+# --- VÉRIFICATION DES ARGUMENTS ---
 if [ $# -eq 0 ]; then
     echo "❌ Erreur: Aucun fichier spécifié"
     echo "Usage: $0 fichier1.mscz fichier2.mscz ..."
     exit 1
 fi
 
-# Créer le dossier de sortie
 mkdir -p "$OUTPUT_DIR"
 
-# Traiter chaque fichier
+# --- TRAITEMENT DES FICHIERS ---
 for file in "$@"; do
-    if [[ ! "$file" == *.mscz ]]; then
-        echo "⚠️  Ignoré (non .mscz): $file"
+    if [[ ! "$file" == *.mscz ]] || [[ ! -f "$file" ]]; then
+        echo "⚠️  Ignoré ou introuvable: $file"
         continue
     fi
     
-    if [[ ! -f "$file" ]]; then
-        echo "⚠️  Fichier introuvable: $file"
-        continue
-    fi
-    
-    # Extraire le nom de base et le chemin relatif
+    # Préparation des noms et dossiers
     base_name=$(basename "$file" .mscz)
-    
-    # Détecter si le fichier est dans un sous-dossier
     file_dir=$(dirname "$file")
     
-    # Si le fichier est dans un sous-dossier, préserver la structure
     if [[ "$file_dir" != "." ]]; then
-        # Créer la structure output/chemin_relatif/nom_fichier/
         output_dir="$OUTPUT_DIR/${file_dir}/${base_name}"
     else
-        # Fichier à la racine : output/nom_fichier/
         output_dir="$OUTPUT_DIR/${base_name}"
     fi
     
@@ -79,55 +66,48 @@ for file in "$@"; do
     echo "📄 Processing: $file"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     
-    # Generate MP3
+    # 1. Génération des formats audio et données
     echo "🎵 Génération MP3..."
-    "$MUSESCORE" -o "$output_dir/${base_name}.mp3" "$file"
+    $RUNNER "$MUSESCORE" -o "$output_dir/${base_name}.mp3" "$file"
     
-    # Generate MIDI
     echo "🎹 Génération MIDI..."
-    "$MUSESCORE" -o "$output_dir/${base_name}.mid" "$file"
+    $RUNNER "$MUSESCORE" -o "$output_dir/${base_name}.mid" "$file"
     
-    # Generate MusicXML
     echo "📝 Génération MusicXML..."
-    "$MUSESCORE" -o "$output_dir/${base_name}.musicxml" "$file"
+    $RUNNER "$MUSESCORE" -o "$output_dir/${base_name}.musicxml" "$file"
     
-    # Generate parts (JSON)
-    echo "📋 Extract parts..."
-    "$MUSESCORE" "$file" --score-parts > "${base_name}-parts.json"
+    # 2. Extraction des parties (JSON)
+    echo "📋 Extraction des parties..."
+    $RUNNER "$MUSESCORE" "$file" --score-parts > "${base_name}-parts.json"
     
-    
-    # Generate individual parts MSCZ
-    echo "🎼 Génération des parties individuelles..."
+    # 3. Décodage des parties via Python
+    echo "🎼 Génération des fichiers de parties individuelles..."
     if [ -f "src/musescore/decode_parts.py" ]; then
         python3 src/musescore/decode_parts.py "${base_name}-parts.json" "$output_dir"
     else
-        echo "⚠️  decode_parts.py non trouvé, parties non générées"
+        echo "⚠️  decode_parts.py non trouvé, saut de l'étape."
     fi
     
-    # Convert all part MSCZ files to PDF (but not the original yet)
-    echo "📄 Conversion PDF..."
-    for mscz_file in "$output_dir"/*.mscz; do
-        if [ -f "$mscz_file" ]; then
-            mscz_file_name=$(basename "$mscz_file" .mscz)
-            "$MUSESCORE" -o "$output_dir/${mscz_file_name}.pdf" "$mscz_file"
-            # Delete the part MSCZ file after PDF conversion
-            rm "$mscz_file"
+    # 4. Conversion des parties MSCZ en PDF
+    echo "📄 Conversion PDF des parties..."
+    for mscz_part in "$output_dir"/*.mscz; do
+        if [ -f "$mscz_part" ]; then
+            part_name=$(basename "$mscz_part" .mscz)
+            $RUNNER "$MUSESCORE" -o "$output_dir/${part_name}.pdf" "$mscz_part"
+            rm "$mscz_part"  # Nettoyage
         fi
     done
     
-    # Copy original MSCZ file AFTER cleaning up part files
+    # 5. Finalisation
     echo "📦 Copie du fichier MSCZ original..."
     cp "$file" "$output_dir/"
     
-    # Clean up temporary JSON file
     rm -f "${base_name}-parts.json"
     
-    echo "✅ Traité: $file"
-    echo "   → Sortie: $output_dir"
-    echo "   → Fichiers: $(ls -1 "$output_dir" | wc -l) fichiers générés"
+    echo "✅ Terminé: $base_name"
 done
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "✅ Conversion terminée !"
+echo "🎉 Tous les fichiers ont été traités !"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
