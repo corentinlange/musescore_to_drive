@@ -87,7 +87,8 @@ for file in "$@"; do
     echo "📋 Extract parts..."
     "$MUSESCORE" "$file" --score-parts > "${base_name}-parts.json"
     
-    # Générer MSCZ des parties
+    
+    # Generate individual parts MSCZ
     echo "🎼 Génération des parties individuelles..."
     if [ -f "src/musescore/decode_parts.py" ]; then
         python3 src/musescore/decode_parts.py "${base_name}-parts.json" "$output_dir"
@@ -95,20 +96,22 @@ for file in "$@"; do
         echo "⚠️  decode_parts.py non trouvé, parties non générées"
     fi
     
-    # Copier le fichier original
-    cp "$file" "$output_dir"
-    
-    # Convertir toutes les parties MSCZ en PDF
+    # Convert all part MSCZ files to PDF (but not the original yet)
     echo "📄 Conversion PDF..."
     for mscz_file in "$output_dir"/*.mscz; do
         if [ -f "$mscz_file" ]; then
             mscz_file_name=$(basename "$mscz_file" .mscz)
             "$MUSESCORE" -o "$output_dir/${mscz_file_name}.pdf" "$mscz_file"
+            # Delete the part MSCZ file after PDF conversion
             rm "$mscz_file"
         fi
     done
     
-    # Nettoyer le fichier JSON temporaire
+    # Copy original MSCZ file AFTER cleaning up part files
+    echo "📦 Copie du fichier MSCZ original..."
+    cp "$file" "$output_dir/"
+    
+    # Clean up temporary JSON file
     rm -f "${base_name}-parts.json"
     
     echo "✅ Traité: $file"
