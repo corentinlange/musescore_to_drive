@@ -31,9 +31,8 @@ jobs:
     strategy:
       matrix:
         file: ${{ fromJson(needs.get-all-files.outputs.matrix) }}
-      fail-fast: false  # Continue même si un fichier échoue
-      max-parallel: 5   # Limite à 5 jobs en parallèle
-    
+      fail-fast: false  
+      
     uses: ./.github/workflows/process_musescore.yml
     with:
       file_to_process: ${{ matrix.file }}
