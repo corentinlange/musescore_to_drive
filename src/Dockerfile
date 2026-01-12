@@ -5,10 +5,12 @@ FROM ubuntu:22.04
 LABEL maintainer="MuseScore to Drive"
 LABEL description="MuseScore processor for automated PDF and MP3 conversion"
 
-# Install system dependencies (same as working GitHub Actions workflow)
+# Install system dependencies
+# AJOUT de xvfb pour le rendu graphique virtuel
 RUN apt-get update && apt-get install -y \
     wget curl jq \
     python3 python3-pip \
+    xvfb \
     libjack-jackd2-0 libopengl0 libgl1-mesa-glx libegl1-mesa \
     libwayland-client0 libxcb-xinerama0 libxcb-icccm4 libxcb-image0 \
     libasound2 libnss3 libglib2.0-0 libxcb-cursor0 \
@@ -19,9 +21,7 @@ COPY tools/requirements.txt /tmp/requirements.txt
 RUN pip3 install --no-cache-dir -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
-# MuseScore AppImage URL (can be overridden at build time)
-# Default: stable version 4.5.1 (tested and verified)
-# To use latest: docker build --build-arg MUSESCORE_URL=$(./src/scripts/get-musescore-url.sh) -t musescore-processor ./src
+# MuseScore AppImage URL
 ARG MUSESCORE_URL=https://cdn.jsdelivr.net/musescore/v4.5.1/MuseScore-Studio-4.5.1.250800846-x86_64.AppImage
 
 # Download and extract MuseScore AppImage
