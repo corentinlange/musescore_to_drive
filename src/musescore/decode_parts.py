@@ -23,11 +23,34 @@ def decode_and_save_part(sheet_name, part_name, base64_data, output_dir):
 
 
 def process_json_file(json_file_path, output_dir):
+    """
+    Parse JSON from MuseScore --score-parts and create MSCZ files for each part
+    """
+    # Check if file exists and is not empty
+    if not os.path.exists(json_file_path):
+        print(f"⚠️  JSON file not found: {json_file_path}")
+        return
+    
+    if os.path.getsize(json_file_path) == 0:
+        print(f"⚠️  JSON file is empty (MuseScore may not have extracted parts): {json_file_path}")
+        return
+    
+    try:
+        with open(json_file_path, 'r', encoding='utf-8') as json_file:
+            data = json.load(json_file)
+    except json.JSONDecodeError as e:
+        print(f"⚠️  Invalid JSON from MuseScore (skipping parts extraction): {e}")
+        return
+    except Exception as e:
+        print(f"⚠️  Error reading JSON file: {e}")
+        return
+    
+    if not data:
+        print(f"⚠️  No parts found in JSON")
+        return
+
     # Read the JSON file
     sheet_name = os.path.splitext(json_file_path)[0].split("-parts")[0]
-
-    with open(json_file_path, "r") as json_file:
-        data = json.load(json_file)
 
     parts = data.get("parts", [])
     parts_bin = data.get("partsBin", [])
