@@ -23,15 +23,15 @@ else
     exit 1
 fi
 
-# --- GESTION DU WRAPPER GRAPHIQUE (XVFB) ---
-# Nécessaire pour éviter l'Exit Code 40 sur serveur
-RUNNER=""
-if command -v xvfb-run &> /dev/null; then
-    RUNNER="xvfb-run --auto-servernum"
-    echo "✓ Serveur graphique virtuel (xvfb) prêt."
-else
-    echo "⚠️  xvfb-run non trouvé, exécution directe (peut échouer sur serveur sans écran)."
-fi
+# --- CONFIGURATION QT POUR MODE HEADLESS ---
+# Force Qt to use offscreen platform (no display needed)
+export QT_QPA_PLATFORM="offscreen"
+export QT_LOGGING_RULES="*.debug=false;qt.qpa.*=false"
+export QT_QPA_PLATFORMTHEME=""
+export QML_DISABLE_DISK_CACHE=1
+export QTWEBENGINE_DISABLE_SANDBOX=1
+
+echo "✓ Qt configured for headless mode (offscreen)"
 
 # --- VÉRIFICATION DES ARGUMENTS ---
 if [ $# -eq 0 ]; then
@@ -68,17 +68,17 @@ for file in "$@"; do
     
     # 1. Génération des formats audio et données
     echo "🎵 Génération MP3..."
-    $RUNNER "$MUSESCORE" -o "$output_dir/${base_name}.mp3" "$file"
+    "$MUSESCORE" -f -o "$output_dir/${base_name}.mp3" "$file"
     
     echo "🎹 Génération MIDI..."
-    $RUNNER "$MUSESCORE" -o "$output_dir/${base_name}.mid" "$file"
+    "$MUSESCORE" -f -o "$output_dir/${base_name}.mid" "$file"
     
     echo "📝 Génération MusicXML..."
-    $RUNNER "$MUSESCORE" -o "$output_dir/${base_name}.musicxml" "$file"
+    "$MUSESCORE" -f -o "$output_dir/${base_name}.musicxml" "$file"
     
     # 2. Extraction des parties (JSON)
     echo "📋 Extraction des parties..."
-    $RUNNER "$MUSESCORE" "$file" --score-parts > "${base_name}-parts.json"
+    "$MUSESCORE" -f "$file" --score-parts > "${base_name}-parts.json"
     
     # 3. Décodage des parties via Python
     echo "🎼 Génération des fichiers de parties individuelles..."
@@ -93,7 +93,7 @@ for file in "$@"; do
     for mscz_part in "$output_dir"/*.mscz; do
         if [ -f "$mscz_part" ]; then
             part_name=$(basename "$mscz_part" .mscz)
-            $RUNNER "$MUSESCORE" -o "$output_dir/${part_name}.pdf" "$mscz_part"
+            "$MUSESCORE" -f -o "$output_dir/${part_name}.pdf" "$mscz_part"
             rm "$mscz_part"  # Nettoyage
         fi
     done
