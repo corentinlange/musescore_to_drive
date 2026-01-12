@@ -4,4 +4,8 @@ __pycache__
 
 output
 .env
+
+# Google Cloud / OAuth 2.0 credentials (NEVER commit these!)
 service_account.json
+credentials.json
+token.json

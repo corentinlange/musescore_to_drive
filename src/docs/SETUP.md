@@ -26,81 +26,172 @@ Complete guide to fork and configure this project.
 2. GitHub creates your personal copy
 3. No need to clone locally
 
-### 2. Create Google Service Account
+### 2. Create Google OAuth 2.0 Credentials
+
+> **Why OAuth 2.0?** GitHubBot uploads files to **your personal Google Drive** acting as you. Service Accounts cannot access personal Drive folders directly.
 
 #### A. Enable Google Drive API
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com)
 2. **Create new project** (e.g., "musescore-to-drive")
-3. **APIs & Services** → **Library**
-4. Search **"Google Drive API"**
-5. Click **Enable**
+3. Select your project from the dropdown
+4. **APIs & Services** → **Library**
+5. Search **"Google Drive API"**
+6. Click **Enable**
 
-#### B. Create Service Account
+#### B. Configure OAuth Consent Screen
 
-1. **IAM & Admin** → **Service Accounts**
-2. **Create Service Account**
-   - Name: `musescore-uploader`
-   - Description: "Uploads MuseScore files to Drive"
-   - Role: (leave empty)
-3. Click **Done**
-4. In the list, click on created service account
-5. **Keys** → **Add Key** → **Create new key** → **JSON**
-6. **Download JSON file** (e.g., `service-account.json`)
-   - Warning: Never commit this file
+1. **APIs & Services** → **OAuth consent screen**
+2. Select **External** (unless you have a Google Workspace)
+3. Click **Create**
+4. Fill in required fields:
+   - **App name**: `MuseScore to Drive`
+   - **User support email**: Your email
+   - **Developer contact**: Your email
+5. Click **Save and Continue**
+6. **Scopes**: Click **Add or Remove Scopes**
+   - Search and select: `https://www.googleapis.com/auth/drive`
+   - Click **Update** → **Save and Continue**
+7. **Test users**: Click **Add Users**
+   - Add your Google email
+   - Click **Save and Continue**
+8. Click **Back to Dashboard**
 
-### 3. Create Google Drive Folder
+#### C. Create OAuth 2.0 Client ID
+
+1. **APIs & Services** → **Credentials**
+2. Click **Create Credentials** → **OAuth client ID**
+3. Application type: **Desktop app**
+4. Name: `MuseScore Desktop Client`
+5. Click **Create**
+6. **Download JSON** (click download icon) → Save as `credentials.json`
+   - ⚠️ **Warning**: Never commit this file to Git
+
+### 3. Generate User Token (OAuth 2.0 Authentication)
+
+You need to authenticate once to generate a `token.json` file that allows GitHubBot to upload files as you.
+
+#### A. Install Python Dependencies (One-time)
+
+```bash
+pip install google-auth-oauthlib google-auth-httplib2 google-api-python-client
+```
+
+#### B. Run Authentication Script
+
+Create a file `generate_token.py`:
+
+```python
+#!/usr/bin/env python3
+"""Generate OAuth 2.0 token for Google Drive access"""
+
+import os
+import json
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+
+SCOPES = ['https://www.googleapis.com/auth/drive']
+
+def main():
+    creds = None
+    
+    # Check if token already exists
+    if os.path.exists('token.json'):
+        print("⚠️  token.json already exists. Delete it first if you want to regenerate.")
+        return
+    
+    if not os.path.exists('credentials.json'):
+        print("❌ Error: credentials.json not found")
+        print("   Download it from Google Cloud Console (OAuth 2.0 Client)")
+        return
+    
+    # Run OAuth flow
+    flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+    creds = flow.run_local_server(port=0)
+    
+    # Save token
+    with open('token.json', 'w') as token:
+        token.write(creds.to_json())
+    
+    print("\n✅ token.json created successfully!")
+    print("   This file contains your OAuth 2.0 access token")
+    print("   ⚠️  Keep it secret - never commit to Git")
+
+if __name__ == '__main__':
+    main()
+```
+
+Run the script:
+
+```bash
+python generate_token.py
+```
+
+This will:
+1. Open your browser
+2. Ask you to sign in to Google
+3. Show permissions request → Click **Allow**
+4. Generate `token.json` file
+
+> **Important**: The `token.json` contains refresh tokens, so it won't expire and GitHubBot can keep using it.
+
+### 4. Get Your Drive Folder ID
 
 1. Go to [Google Drive](https://drive.google.com)
-2. **Create new folder** (e.g., "MuseScore Sheets")
-3. **Right-click folder** → **Share**
-4. **Add service account email**:
-   - Found in downloaded JSON → `client_email` field
-   - Example: `musescore-uploader@my-project.iam.gserviceaccount.com`
-   - Role: **Editor**
-   - Uncheck "Notify people"
-5. **Copy folder ID** from URL:
+2. **Create or open** the folder where you want files uploaded
+   - Example: "MuseScore Sheets"
+3. **Copy folder ID** from URL:
    ```
    https://drive.google.com/drive/folders/1AbC2DeF3GhI4JkL5MnO
                                           ^^^^^^^^^^^^^^^^^
                                           This is the folder ID
    ```
 
-### 4. Encode Key to Base64
+> **Note**: No need to share this folder - it's already yours, and GitHubBot will act as you.
 
-Convert JSON to base64 for GitHub secrets.
+### 5. Encode Token to Base64
 
-#### Option A: Online (Quick)
+Convert `token.json` to base64 for GitHub secrets.
 
-1. Go to https://www.base64encode.org/
-2. Paste **entire content** of `service-account.json`
-3. Click "Encode"
-4. Copy result (very long string)
-
-#### Option B: Command Line
+#### Option A: Command Line (Recommended)
 
 **Git Bash (Windows) / Linux / macOS:**
 ```bash
-cat service-account.json | base64 -w 0
+cat token.json | base64 -w 0
 ```
 
 **PowerShell (Windows):**
 ```powershell
-[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Content service-account.json -Raw)))
+[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Content token.json -Raw)))
 ```
 
-### 5. Configure GitHub Secrets
+#### Option B: Online Tool
 
-1. Your fork → **Settings** → **Secrets and variables** → **Actions**
-2. **New repository secret**:
-   - Name: `GCP_SERVICE_ACCOUNT_KEY_B64`
-   - Value: [Paste base64 from step 4]
-   - Click "Add secret"
+1. Go to https://www.base64encode.org/
+2. Paste **entire content** of `token.json`
+3. Click "Encode"
+4. Copy result (very long string)
 
-3. **New repository secret**:
-   - Name: `DRIVE_FOLDER_ID`
-   - Value: [Folder ID from step 3]
-   - Click "Add secret"
+### 6. Configure GitHub Secrets
+
+1. Go to your fork on GitHub
+2. **Settings** → **Secrets and variables** → **Actions**
+3. Click **New repository secret**
+
+#### Secret 1: GDRIVE_TOKEN
+
+- **Name**: `GDRIVE_TOKEN`
+- **Value**: Paste the base64-encoded string from step 5
+- Click **Add secret**
+
+#### Secret 2: DRIVE_FOLDER_ID
+
+- **Name**: `DRIVE_FOLDER_ID`
+- **Value**: Paste the folder ID from step 4
+- Click **Add secret**
+
+> ✅ **You're done!** GitHubBot can now upload to your Google Drive as you.
 
 ### 6. Build Docker Image (Optional but Recommended)
 
@@ -200,12 +291,16 @@ See [local testing guide](src/docs/local-testing.md).
 ### Nothing Appears on Drive
 
 **Checks**:
-1. Service account has access to Drive folder?
-   - Check folder sharing settings
+1. `GDRIVE_TOKEN` secret valid?
+   - Verify you completed OAuth 2.0 flow successfully
+   - Check if `token.json` was encoded correctly to base64
+   - Try regenerating token with `generate_token.py`
 2. `DRIVE_FOLDER_ID` secret correct?
    - Compare with folder URL
-3. `GCP_SERVICE_ACCOUNT_KEY_B64` valid?
-   - Try re-encoding
+   - Make sure it's the folder ID, not the full URL
+3. OAuth 2.0 permissions granted?
+   - Check if you clicked "Allow" during authentication
+   - Verify scope `https://www.googleapis.com/auth/drive` is included
 
 ### Workflow Slow (~70s Setup)
 
