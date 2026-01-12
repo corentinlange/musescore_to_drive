@@ -100,3 +100,72 @@ class DriveConnector:
 
     def delete_files(self, file_or_folder_id):
         self.drive_service.files().delete(fileId=file_or_folder_id).execute()
+    
+    # ============================================================================
+    # File Versioning Methods
+    # ============================================================================
+    
+    def get_file_metadata(self, file_id):
+        """Get file metadata including modification date"""
+        file = self.drive_service.files().get(
+            fileId=file_id,
+            fields="id, name, modifiedTime, mimeType"
+        ).execute()
+        return file
+    
+    def find_file_in_folder(self, folder_id, file_name):
+        """Find a specific file by name in a folder. Returns file dict or None."""
+        files = self.list_folder(folder_id)
+        for file in files:
+            if file.get("name") == file_name and file.get("mimeType") != "application/vnd.google-apps.folder":
+                return file
+        return None
+    
+    def rename_file(self, file_id, new_name):
+        """Rename a file"""
+        file_metadata = {"name": new_name}
+        self.drive_service.files().update(
+            fileId=file_id,
+            body=file_metadata
+        ).execute()
+    
+    def move_file(self, file_id, new_parent_id):
+        """Move a file to a different folder"""
+        # Get current parents
+        file = self.drive_service.files().get(
+            fileId=file_id,
+            fields='parents'
+        ).execute()
+        previous_parents = ",".join(file.get('parents', []))
+        
+        # Move to new parent
+        self.drive_service.files().update(
+            fileId=file_id,
+            addParents=new_parent_id,
+            removeParents=previous_parents,
+            fields='id, parents'
+        ).execute()
+    
+    def delete_folder_contents(self, folder_id, preserve_folders=None):
+        """
+        Delete all files in a folder, optionally preserving specific subfolders
+        
+        Args:
+            folder_id: ID of folder to clean
+            preserve_folders: List of folder names to preserve (e.g., ['old'])
+        """
+        if preserve_folders is None:
+            preserve_folders = []
+        
+        files = self.list_folder(folder_id)
+        for file in files:
+            file_name = file.get("name")
+            file_id = file.get("id")
+            is_folder = file.get("mimeType") == "application/vnd.google-apps.folder"
+            
+            # Skip preserved folders
+            if is_folder and file_name in preserve_folders:
+                continue
+            
+            # Delete everything else
+            self.delete_files(file_id)
