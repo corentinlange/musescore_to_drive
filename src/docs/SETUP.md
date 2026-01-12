@@ -185,9 +185,9 @@ cat token.json | base64 -w 0
 - **Value**: Paste the base64-encoded string from step 5
 - Click **Add secret**
 
-#### Secret 2: DRIVE_FOLDER_ID
+#### Secret 2: DRIVE_ROOT_FOLDER_ID
 
-- **Name**: `DRIVE_FOLDER_ID`
+- **Name**: `DRIVE_ROOT_FOLDER_ID`
 - **Value**: Paste the folder ID from step 4
 - Click **Add secret**
 
@@ -266,7 +266,7 @@ The workflow automatically:
 ### Change Drive Folder
 
 To upload to different folder:
-1. Settings → Secrets → `DRIVE_FOLDER_ID`
+1. Settings → Secrets → `DRIVE_ROOT_FOLDER_ID`
 2. Edit → Enter new ID
 
 ### Rebuild Docker Image
@@ -295,7 +295,7 @@ See [local testing guide](src/docs/local-testing.md).
    - Verify you completed OAuth 2.0 flow successfully
    - Check if `token.json` was encoded correctly to base64
    - Try regenerating token with `generate_token.py`
-2. `DRIVE_FOLDER_ID` secret correct?
+2. `DRIVE_ROOT_FOLDER_ID` secret correct?
    - Compare with folder URL
    - Make sure it's the folder ID, not the full URL
 3. OAuth 2.0 permissions granted?

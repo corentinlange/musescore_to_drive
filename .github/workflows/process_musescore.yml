@@ -10,6 +10,8 @@ on:
     secrets:
       GDRIVE_TOKEN:
         required: true
+      DRIVE_ROOT_FOLDER_ID:
+        required: true
 
 jobs:
   process:
@@ -31,7 +33,7 @@ jobs:
       - name: Upload to Drive
         env:
           GDRIVE_TOKEN: ${{ secrets.GDRIVE_TOKEN }}
-          DRIVE_FOLDER_ID: ${{ vars.DRIVE_FOLDER_ID }}
+          DRIVE_ROOT_FOLDER_ID: ${{ secrets.DRIVE_ROOT_FOLDER_ID }}
         run: |
           # Upload all output files (connector.py will decode the key)
           python3 src/drive-api/upload_all.py output

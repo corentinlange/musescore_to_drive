@@ -24,7 +24,7 @@ jobs:
       - name: Test upload to Drive
         env:
           GDRIVE_TOKEN: ${{ secrets.GDRIVE_TOKEN }}
-          DRIVE_FOLDER_ID: ${{ vars.DRIVE_FOLDER_ID }}
+          DRIVE_ROOT_FOLDER_ID: ${{ secrets.DRIVE_ROOT_FOLDER_ID }}
         run: |
           echo "📤 Testing upload..."
           python3 src/drive-api/upload_all.py test_output
@@ -32,10 +32,10 @@ jobs:
       - name: Verify upload
         env:
           GDRIVE_TOKEN: ${{ secrets.GDRIVE_TOKEN }}
-          DRIVE_FOLDER_ID: ${{ vars.DRIVE_FOLDER_ID }}
+          DRIVE_ROOT_FOLDER_ID: ${{ secrets.DRIVE_ROOT_FOLDER_ID }}
         run: |
           echo "🔍 Listing Drive folder..."
-          python3 src/drive-api/list_tree.py ${{ vars.DRIVE_FOLDER_ID }} --name "Test Folder"
+          python3 src/drive-api/list_tree.py ${{ secrets.DRIVE_ROOT_FOLDER_ID }} --name "Test Folder"
 
       - name: Summary
         run: |

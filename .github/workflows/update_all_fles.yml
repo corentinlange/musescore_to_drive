@@ -39,3 +39,4 @@ jobs:
       file_to_process: ${{ matrix.file }}
     secrets:
       GDRIVE_TOKEN: ${{ secrets.GDRIVE_TOKEN }}
+      DRIVE_ROOT_FOLDER_ID: ${{ secrets.DRIVE_ROOT_FOLDER_ID }}

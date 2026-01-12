@@ -69,12 +69,12 @@ def upload_directory_structure(output_dir, root_folder_id):
 
 
 def main():
-    # Verify DRIVE_FOLDER_ID
-    root_folder_id = os.getenv("DRIVE_FOLDER_ID")
+    # Verify DRIVE_ROOT_FOLDER_ID
+    root_folder_id = os.getenv("DRIVE_ROOT_FOLDER_ID")
     if not root_folder_id:
-        print("❌ Error: DRIVE_FOLDER_ID not defined in .env")
+        print("❌ Error: DRIVE_ROOT_FOLDER_ID not defined in .env")
         print("\nAdd to .env:")
-        print("  DRIVE_FOLDER_ID='your_folder_id'")
+        print("  DRIVE_ROOT_FOLDER_ID='your_folder_id'")
         sys.exit(1)
     
     # Determine output directory
