@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """
-Upload fichiers vers Google Drive en respectant l'arborescence
+Upload files to Google Drive (GitHubBot)
+
+Executed automatically by GitHubBot via GitHub Actions.
+Uploads all generated files while preserving directory structure.
+
 Usage: python src/drive-api/upload_all.py [output_directory]
 """
 
@@ -23,33 +27,33 @@ from connector import DriveConnector
 
 def upload_directory_structure(output_dir, root_folder_id):
     """
-    Upload tous les fichiers depuis output/ en respectant l'arborescence
+    Upload all files from output/ preserving directory structure
     
     Args:
-        output_dir: Répertoire output/ à uploader
-        root_folder_id: ID du dossier Drive racine
+        output_dir: Output directory to upload
+        root_folder_id: Root Drive folder ID
     """
     drive = DriveConnector()
     stats = {"uploaded": 0, "skipped": 0}
     
-    # Parcourir récursivement output/
+    # Recursively walk through output/
     for root, dirs, files in os.walk(output_dir):
-        # Calculer le chemin relatif depuis output/
+        # Calculate relative path from output/
         rel_path = os.path.relpath(root, output_dir)
         
         if rel_path == ".":
-            # Racine d'output
+            # Output root
             current_folder_id = root_folder_id
         else:
-            # Créer la structure de dossiers sur Drive
+            # Create folder structure on Drive
             path_parts = Path(rel_path).parts
             current_folder_id = root_folder_id
             
             for part in path_parts:
-                # Créer ou récupérer le sous-dossier
+                # Create or get subfolder
                 current_folder_id = drive.create_folder(part, current_folder_id)
         
-        # Upload tous les fichiers du dossier courant
+        # Upload all files in current folder
         for file in files:
             file_path = os.path.join(root, file)
             print(f"📤 Upload: {os.path.relpath(file_path, output_dir)}")
@@ -58,31 +62,31 @@ def upload_directory_structure(output_dir, root_folder_id):
                 drive.upload_file(file_path, current_folder_id, replace=True)
                 stats["uploaded"] += 1
             except Exception as e:
-                print(f"   ❌ Erreur: {e}")
+                print(f"   ❌ Error: {e}")
                 stats["skipped"] += 1
     
     return stats
 
 
 def main():
-    # Vérifier DRIVE_FOLDER_ID
+    # Verify DRIVE_FOLDER_ID
     root_folder_id = os.getenv("DRIVE_FOLDER_ID")
     if not root_folder_id:
-        print("❌ Erreur: DRIVE_FOLDER_ID non défini dans .env")
-        print("\nAjouter dans .env:")
-        print("  DRIVE_FOLDER_ID='votre_folder_id'")
+        print("❌ Error: DRIVE_FOLDER_ID not defined in .env")
+        print("\nAdd to .env:")
+        print("  DRIVE_FOLDER_ID='your_folder_id'")
         sys.exit(1)
     
-    # Déterminer le dossier output
+    # Determine output directory
     output_dir = sys.argv[1] if len(sys.argv) > 1 else "output"
     
     if not os.path.isdir(output_dir):
-        print(f"❌ Erreur: Dossier {output_dir} non trouvé")
+        print(f"❌ Error: Directory {output_dir} not found")
         sys.exit(1)
     
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    print("☁️  Upload vers Google Drive")
-    print(f"📁 Dossier: {output_dir}")
+    print("☁️  Upload to Google Drive")
+    print(f"📁 Directory: {output_dir}")
     print(f"🎯 Drive Root: {root_folder_id}")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print()
@@ -92,10 +96,10 @@ def main():
     
     print()
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    print(f"✅ Upload terminé!")
-    print(f"   📤 Fichiers uploadés: {stats['uploaded']}")
+    print(f"✅ Upload completed!")
+    print(f"   📤 Files uploaded: {stats['uploaded']}")
     if stats['skipped'] > 0:
-        print(f"   ⚠️  Fichiers ignorés: {stats['skipped']}")
+        print(f"   ⚠️  Files skipped: {stats['skipped']}")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 

@@ -1,5 +1,7 @@
 name: Update modified musescore on drive
 
+# GitHubBot automatic workflow: Detects modified .mscz files, processes them, and uploads to Google Drive
+
 on:
   push:
     branches:

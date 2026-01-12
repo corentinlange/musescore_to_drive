@@ -11,17 +11,15 @@ SCOPES = ["https://www.googleapis.com/auth/drive"]
 
 class DriveConnector:
     def __init__(self):
-        # Récupération du token utilisateur depuis le secret GitHub
-        # On s'attend à ce que le secret soit le contenu brut du fichier token.json
+        # Get user token from GitHub secret (expected: raw token.json content)
         token_data = os.getenv("GDRIVE_TOKEN")
         
         if not token_data:
-            raise Exception("Erreur : Le secret GDRIVE_TOKEN est vide ou manquant.")
+            raise Exception("Error: GDRIVE_TOKEN secret is empty or missing.")
 
-        # Chargement des informations du token
+        # Load token information
         try:
-            # Si tu l'as encodé en base64 dans ton YAML (recommandé), on décode
-            # Sinon, on charge le JSON directement
+            # If base64 encoded in YAML (recommended), decode it, otherwise load JSON directly
             try:
                 decoded_token = base64.b64decode(token_data).decode("utf-8")
                 token_info = json.loads(decoded_token)
@@ -30,9 +28,9 @@ class DriveConnector:
                 
             credentials = Credentials.from_authorized_user_info(token_info, scopes=SCOPES)
         except Exception as e:
-            raise Exception(f"Erreur lors du chargement du token : {str(e)}")
+            raise Exception(f"Error loading token: {str(e)}")
 
-        # Construction du service (agira en ton nom)
+        # Build service
         self.drive_service = build("drive", "v3", credentials=credentials)
 
     def create_folder(self, folder_name, parent_folder_id=None):
@@ -49,7 +47,7 @@ class DriveConnector:
             "name": folder_name,
             "mimeType": "application/vnd.google-apps.folder",
             "parents": [parent_folder_id] if parent_folder_id else [],
-            "description": "Dossier créé par le Bot GitHub"
+            "description": "Folder created automatically by GitHubBot from GitHub Actions"
         }
         created_folder = self.drive_service.files().create(body=folder_metadata, fields="id").execute()
         return created_folder["id"]
@@ -68,7 +66,7 @@ class DriveConnector:
         # Prepare file metadata
         file_metadata = {
             "name": file_name,
-            "description": "Fichier uploadé par le Bot GitHub"
+            "description": "File uploaded automatically by GitHubBot via GitHub Actions workflow"
         }
         if parent_folder_id:
             file_metadata["parents"] = [parent_folder_id]

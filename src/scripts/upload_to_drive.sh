@@ -1,37 +1,38 @@
 #!/bin/bash
-set -e  # Exit on error
+set -e
 
-# Script d'Upload to Google Drive
+# Upload to Google Drive Script
+# Executed automatically by GitHubBot via GitHub Actions when .mscz files are modified
 # Usage: ./scripts/upload_to_drive.sh
 
 # Configuration
 OUTPUT_DIR="output"
 
-# Charger .env si présent (mode local)
+# Load .env if present (local mode)
 if [ -f ".env" ]; then
     echo "📋 Loading .env..."
     export $(grep -v '^#' .env | xargs)
 fi
 
-# Vérifier que GCP_SERVICE_ACCOUNT_KEY_B64 est défini
+# Verify GCP_SERVICE_ACCOUNT_KEY_B64 is defined
 if [ -z "$GCP_SERVICE_ACCOUNT_KEY_B64" ]; then
-    echo "❌ Error: GCP_SERVICE_ACCOUNT_KEY_B64 non défini"
+    echo "❌ Error: GCP_SERVICE_ACCOUNT_KEY_B64 not defined"
     echo ""
     echo "Solutions:"
-    echo "  1. Mode local: Créer un fichier .env avec:"
-    echo "     GCP_SERVICE_ACCOUNT_KEY_B64='<votre_json_encodé_en_base64>'"
+    echo "  1. Local mode: Create .env file with:"
+    echo "     GCP_SERVICE_ACCOUNT_KEY_B64='<your_json_base64_encoded>'"
     echo ""
-    echo "  2. Mode CI: Définir le secret GitHub GCP_SERVICE_ACCOUNT_KEY_B64"
+    echo "  2. CI mode: Set GitHub secret GCP_SERVICE_ACCOUNT_KEY_B64"
     echo ""
-    echo "  3. Définir manuellement:"
+    echo "  3. Manual:"
     echo "     export GCP_SERVICE_ACCOUNT_KEY_B64='<base64>'"
     echo ""
-    echo "  Pour encoder votre JSON en base64:"
+    echo "  To encode your JSON to base64:"
     echo "     cat service-account.json | base64 -w 0"
     exit 1
 fi
 
-# Décoder le base64 et exporter comme SERVICE_ACCOUNT pour les scripts Python
+# Decode base64 and export as SERVICE_ACCOUNT for Python scripts
 export SERVICE_ACCOUNT=$(echo "$GCP_SERVICE_ACCOUNT_KEY_B64" | base64 -d)
 
 echo ""
@@ -39,19 +40,18 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "☁️  Upload to Google Drive"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-# Vérifier que le script d'upload existe
+# Verify upload script exists
 if [ ! -f "src/tools/upload_to_drive.py" ]; then
-    echo "❌ Error: src/tools/upload_to_drive.py non trouvé"
+    echo "❌ Error: src/tools/upload_to_drive.py not found"
     exit 1
 fi
 
-# Compter le nombre de fichiers traités
 total_uploaded=0
 
-# Traiter tous les fichiers MSCZ
+# Process all MSCZ files and upload to Drive
 for mscz_file in *.mscz; do
     if [ ! -f "$mscz_file" ]; then
-        echo "⚠️  Aucun fichier .mscz trouvé dans le répertoire courant"
+        echo "⚠️  No .mscz files found in current directory"
         break
     fi
     
@@ -66,12 +66,12 @@ for mscz_file in *.mscz; do
     echo ""
     echo "📤 Upload: $base_name"
     
-    # Upload le fichier MSCZ original
+    # Upload original MSCZ file
     echo "   → $mscz_file"
     python3 src/tools/upload_to_drive.py "$mscz_file" "$base_name"
     ((total_uploaded++))
     
-    # Upload tous les fichiers générés
+    # Upload all generated files
     for output_file in "$output_dir"/*; do
         if [ -f "$output_file" ]; then
             echo "   → $(basename "$output_file")"
@@ -80,10 +80,10 @@ for mscz_file in *.mscz; do
         fi
     done
     
-    echo "✅ Upload terminé: $base_name"
+    echo "✅ Upload completed: $base_name"
 done
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "✅ Upload terminé ! ($total_uploaded fichiers uploadés)"
+echo "✅ Upload completed! ($total_uploaded files uploaded)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
